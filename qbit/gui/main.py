@@ -234,6 +234,8 @@ class Viewer(QMainWindow):
 		self.openNewPages = False
 		self.openNewPrivate = True
 
+		self.currentPage = ""
+
 		self.firstchan = ""
 
 		self.loadFont(QBIT_FONT)
@@ -288,6 +290,7 @@ class Viewer(QMainWindow):
 
 		self.unreadMenu = self.menubar.addMenu("Unread Messages")
 		action = self.unreadMenu.addAction(f"No unread messages")
+		action.setFont(self.fontItalic)
 
 		self.appRestart.setShortcut('Ctrl+S')
 		self.appExit.setShortcut('Ctrl+Q')
@@ -396,6 +399,7 @@ class Viewer(QMainWindow):
 		if len(self.unread)==0:
 			self.unreadMenu.setTitle("Unread Messages")
 			action = self.unreadMenu.addAction(f"No unread messages")
+			action.setFont(self.fontItalic)
 			return
 
 		for i in self.unread:
@@ -459,6 +463,7 @@ class Viewer(QMainWindow):
 			w = self.pages[id]
 		
 		w.userTextInput.setFocus()
+		self.currentPage = w
 
 	def connectToIrc(self,nick,username,ircname,host,port,password,use_ssl,autojoin):
 
@@ -550,6 +555,8 @@ class Viewer(QMainWindow):
 		else:
 			self.setWindowTitle(id)
 
+		self.currentPage = w
+
 	def changePageIndex(self,index):
 		self.stack.setCurrentIndex(index)
 		self.stackSelect.setCurrentIndex(index)
@@ -611,7 +618,7 @@ class Viewer(QMainWindow):
 		w = self.stack.widget(x)
 		self.stack.removeWidget(w)
 		self.stackSelect.removeItem(x)
-		del self.pages[id]
+		del self.pages[id.strip()]
 		self.stack.setCurrentIndex(y)
 		self.stackSelect.setCurrentIndex(y)
 
@@ -703,6 +710,8 @@ class Viewer(QMainWindow):
 		self.basePage = self.createBasePage(f"{self.host}:{str(self.port)}")
 		self.basePageOpen = True
 
+		self.currentPage = self.basePage
+
 		if len(self.basePageBuffer)>0:
 			for e in self.basePageBuffer:
 				self.basePage.writeText(e)
@@ -724,16 +733,23 @@ class Viewer(QMainWindow):
 		target = data[1]
 		mode = data[2]
 
+		d = system_display(f"{setter} set mode {mode} on {target}")
+		self.basePage.writeText(d)
+
 	@pyqtSlot(list)
 	def gotChannelMode(self,data):
 		setter = data[0]
 		target = data[1]
+
+		w = self.pages[target]
 
 		for i in data[2]:
 			if i[2] == None:
 				mode = f"{i[0]}{i[1]}"
 			else:
 				mode = f"{i[0]}{i[1]} {i[2]}"
+			d = system_display(f"{setter} set mode {mode} on {target}")
+			w.writeText(d)
 
 	@pyqtSlot(list)
 	def gotChannelInfo(self,data):
@@ -793,16 +809,15 @@ class Viewer(QMainWindow):
 		err_target = data[1]
 		err_msg = data[2]
 
-		for t in self.pages:
-			w = self.pages[t]
-			d = error_display(f"{err_type} error ({err_target}): {err_msg}")
-			w.writeText(d)
+		# Display error on the currently open page
+		d = error_display(f"{err_type} ({err_target}): {err_msg}")
+		self.currentPage.writeText(d)
 
 		if self.basePageOpen:
-			d = error_display(f"{err_type} error ({err_target}): {err_msg}")
+			d = error_display(f"{err_type} ({err_target}): {err_msg}")
 			self.basePage.writeText(d)
 		else:
-			d = error_display(f"{err_type} error ({err_target}): {err_msg}")
+			d = error_display(f"{err_type} ({err_target}): {err_msg}")
 			self.basePageBuffer.append(d)
 
 	@pyqtSlot(str)
@@ -812,14 +827,9 @@ class Viewer(QMainWindow):
 		self.addChannelPage(channel)
 		if self.openNewPages:
 			self.changePage(channel)
-			# w = self.pages[channel]
-			# w.userTextInput.setFocus()
 			return
 		if self.firstchan == channel:
 			self.changePage(channel)
-			# w = self.pages[channel]
-			# w.userTextInput.setFocus()
-
 
 	@pyqtSlot(str)
 	def gotNicklength(self,data):

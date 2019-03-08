@@ -44,6 +44,11 @@ class Viewer(QMainWindow):
 
 		self.userlist = []
 
+		self.banned = []
+
+		self.is_op = False
+		self.is_voiced = False
+
 		self.info = [channel,'',0,0,0,0,0,0,0,0]
 
 		self.topic = ''
@@ -68,6 +73,7 @@ class Viewer(QMainWindow):
 
 		self.channelUserDisplay = QListWidget(self)
 		self.channelUserDisplay.setObjectName("channelUserDisplay")
+		self.channelUserDisplay.installEventFilter(self)
 
 		self.userTextInput = QLineEdit(self)
 		self.userTextInput.setObjectName("userTextInput")
@@ -106,13 +112,203 @@ class Viewer(QMainWindow):
 
 		self.userTextInput.setFocus()
 
-		# self.setCentralWidget(self.verticalSplitter)
+	# Context menus
+	def eventFilter(self, source, event):
 
+		# User List Menu
+		if (event.type() == QtCore.QEvent.ContextMenu and source is self.channelUserDisplay):
+
+			item = source.itemAt(event.pos())
+			if item is None: return True
+
+			user = item.text()
+			if '@' in user:
+				user_op = True
+			else:
+				user_op = False
+			if '+' in user:
+				user_voiced = True
+			else:
+				user_voiced = False
+			user = user.replace("@","")
+			user = user.replace("+","")
+			user = user.replace("%","")
+			user = user.replace("~","")
+			user = user.replace("&","")
+
+			if user == self.parent.nickname:
+				if not self.is_op:
+					if not self.is_voiced:
+						return True
+				menu = QMenu()
+				actDeop = menu.addAction(QIcon(IMAGE_MINUS_ICON),'De-op self')
+				actDevoice = menu.addAction(QIcon(IMAGE_MINUS_ICON),'De-voice self')
+				if self.is_op:
+					actDevoice.setVisible(False)
+				if self.is_voiced:
+					actDeop.setVisible(False)
+				action = menu.exec_(self.channelUserDisplay.mapToGlobal(event.pos()))
+				if action == actDeop:
+					self.parent.irc.connection.send_items('MODE', self.channel, "-o", self.parent.nickname)
+					return True
+				if action == actDevoice:
+					self.parent.irc.connection.send_items('MODE', self.channel, "-v", self.parent.nickname)
+					return True
+				return True
+
+			menu = QMenu()
+
+			if self.is_op:
+				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),'Channel Operator')
+			elif self.is_voiced:
+				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),'Voiced User')
+			else:
+				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),'Normal User')
+
+			infoChan.setFont(self.parent.fontBoldItalic)
+			menu.addSeparator()
+
+			actMsg = menu.addAction(QIcon(IMAGE_PAGE_ICON),'Message User')
+			actNotice = menu.addAction(QIcon(IMAGE_PAGE_ICON),'Notice User')
+
+			if self.is_op: menu.addSeparator()
+
+			actOp = menu.addAction(QIcon(IMAGE_PLUS_ICON),'Give ops')
+			actDeop = menu.addAction(QIcon(IMAGE_MINUS_ICON),'Take ops')
+
+			actVoice = menu.addAction(QIcon(IMAGE_PLUS_ICON),'Give voice')
+			actDevoice = menu.addAction(QIcon(IMAGE_MINUS_ICON),'Take voice')
+
+			if user_op:
+				actOp.setVisible(False)
+			else:
+				actDeop.setVisible(False)
+
+			if user_voiced:
+				actVoice.setVisible(False)
+			else:
+				actDevoice.setVisible(False)
+
+			actKick = menu.addAction('Kick user')
+			actBan = menu.addAction('Ban user')
+
+			if len(self.banned)>0:
+				if self.is_op:
+					menuBanned = menu.addMenu("Remove Ban")
+					for u in self.banned:
+						action = menuBanned.addAction(QIcon(IMAGE_USER_ICON),f"{u}")
+						action.triggered.connect(
+							lambda state,user=u: self.unban(user))
+
+			if not self.is_op:
+				actOp.setVisible(False)
+				actDeop.setVisible(False)
+				actVoice.setVisible(False)
+				actDevoice.setVisible(False)
+				actKick.setVisible(False)
+				actBan.setVisible(False)
+
+			menu.addSeparator()
+
+			actClip = menu.addAction(QIcon(IMAGE_CLIPBOARD_ICON),'Copy nick to clipboard')
+			actUClip = menu.addAction(QIcon(IMAGE_CLIPBOARD_ICON),'Copy user list to clipboard')
+
+			action = menu.exec_(self.channelUserDisplay.mapToGlobal(event.pos()))
+
+			if action == actMsg:
+				self.userTextInput.setText(f"/msg {user} ")
+				self.userTextInput.setFocus()
+				return True
+
+			if action == actNotice:
+				self.userTextInput.setText(f"/notice {user} ")
+				self.userTextInput.setFocus()
+				return True
+
+			if action == actOp:
+				self.parent.irc.connection.send_items('MODE', self.channel, "+o", user)
+				return True
+
+			if action == actDeop:
+				self.parent.irc.connection.send_items('MODE', self.channel, "-o", user)
+				return True
+
+			if action == actVoice:
+				self.parent.irc.connection.send_items('MODE', self.channel, "+v", user)
+				return True
+
+			if action == actDevoice:
+				self.parent.irc.connection.send_items('MODE', self.channel, "-v", user)
+				return True
+
+			if action == actKick:
+				self.parent.irc.connection.send_items('KICK', self.channel, user)
+				return True
+
+			if action == actBan:
+				uh = self.getUserHostmask(user)
+				if uh == None:
+					self.parent.irc.connection.send_items('MODE', self.channel, "+b", user)
+					self.banned.append(user)
+				else:
+					self.parent.irc.connection.send_items('MODE', self.channel, "+b", f"*@{uh}")
+					self.banned.append(f"*@{uh}")
+				return True
+
+			if action == actClip:
+				cb = QApplication.clipboard()
+				cb.clear(mode=cb.Clipboard )
+				cb.setText(user, mode=cb.Clipboard)
+				return True
+
+			if action == actUClip:
+				cb = QApplication.clipboard()
+				cb.clear(mode=cb.Clipboard )
+				cb.setText("\n".join(self.userlist), mode=cb.Clipboard)
+				return True
+
+		return super(Viewer, self).eventFilter(source, event)
+
+	def unban(self,user):
+		self.parent.irc.connection.send_items('MODE', self.channel, "-b", user)
+		bc = []
+		for u in self.banned:
+			if u == user: continue
+			bc.append(u)
+		self.banned = bc
+
+	def getUserHostmask(self,nick):
+		for u in self.userlist:
+			if '!' in u:
+				up = u.split('!')
+				if nick == up[0]:
+					m = up[1].split('@')
+					return m[1]
+		return None
 
 	def setUserList(self,ulist):
 		self.channelUserDisplay.clear()
+		self.userlist = []
 		for n in ulist:
 			u = NickMask(n)
+
+			# Strip channel status symbols for storage
+			ue = u
+			if ue[0]=='@': ue = ue.replace('@','',1)
+			if ue[0]=='+': ue = ue.replace('+','',1)
+			if ue[0]=='~': ue = ue.replace('~','',1)
+			if ue[0]=='&': ue = ue.replace('&','',1)
+			if ue[0]=='%': ue = ue.replace('%','',1)
+			self.userlist.append(ue)
+
+			# Check for client channel status
+			if u.nick == self.parent.nickname:
+				self.is_op = False
+				self.is_voiced = False
+			if u.nick == f"@{self.parent.nickname}": self.is_op = True
+			if u.nick == f"+{self.parent.nickname}": self.is_voiced = True
+			
+			# Add nick to the user display
 			self.channelUserDisplay.addItem(u.nick)
 
 	def cleanUserList(self,ulist):
