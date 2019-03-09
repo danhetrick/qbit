@@ -29,9 +29,7 @@ import qbit.gui.channel as Channel
 import qbit.gui.user as User
 import qbit.gui.connect as Connect
 
-import qbit.gui.dialog.join_channel as JoinDialog
-import qbit.gui.dialog.new_nick as NickDialog
-import qbit.gui.dialog.about as AboutDialog
+import qbit.gui.about as AboutDialog
 
 from irc.client import NickMask
 
@@ -39,11 +37,65 @@ from qbit.common import *
 
 class Viewer(QMainWindow):
 
+	def helpText(self):
+		ht = []
+		ht.append("")
+		ht.append(f"<b><i>{APPLICATION_NAME} {APPLICATION_VERSION} Commands</i></b>")
+		ht.append("")
+		ht.append("<b>/msg <i>TARGET MESSAGE</i></b>")
+		ht.append("&nbsp;&nbsp;Sends a message to a user or channel.")
+		ht.append("")
+		ht.append("<b>/notice <i>TARGET MESSAGE</i></b>")
+		ht.append("&nbsp;&nbsp;Sends a notice to a user or channel.")
+		ht.append("")
+		ht.append("<b>/nick <i>NEW_NICKNAME</i></b>")
+		ht.append("&nbsp;&nbsp;Changes the nickname in use. If the chosen nickname is already in use, \"_\" is appended to the nickname until an unused nickname is found.")
+		ht.append("")
+		ht.append("<b>/ignore <i>TARGET</i></b>")
+		ht.append("&nbsp;&nbsp;Any messages sent by the targeted nickname or channel will be ignored, and not displayed. Issue the <b>/ignore</b> command with the same target to turn ignore off.")
+		ht.append("")
+		ht.append("<b>/join <i>CHANNEL [KEY]</i></b>")
+		ht.append("&nbsp;&nbsp;Joins a channel. <b><i>KEY</i></b> is only needed if the channel is locked (+k) with a key.")
+		ht.append("")
+		ht.append("<b>/part <i>CHANNEL</i></b>")
+		ht.append("&nbsp;&nbsp;Leaves a channel.")
+		return ht
+
+	def helpTextChannel(self):
+		t = self.helpText()
+		t.append("")
+		t.append("<b>/me <i>MESSAGE</i></b>")
+		t.append("&nbsp;&nbsp;Sends a CTCP action message to the current channel or user.")
+		return t
+
 	def handleUserInput(self,source,text):
 
 		if source == "":
 			# base page
 			tokens = text.split()
+
+			if len(tokens)==1 and tokens[0] == "/help":
+				for l in self.helpText():
+					d = system_display(l)
+					self.basePage.writeText(d)
+				return
+
+			if len(tokens)>=1 and tokens[0] == "/ignore":
+				if len(tokens)==2:
+					tokens.pop(0)
+					nick = tokens.pop(0)
+					if self.isIgnored(nick):
+						self.unignoreUser(nick)
+						d = system_display(f"{nick} is no longer ignored.")
+						self.basePage.writeText(d)
+					else:
+						self.ignoreUser(nick)
+						d = system_display(f"{nick} is ignored.")
+						self.basePage.writeText(d)
+					return
+				d = error_display("USAGE: /ignore NICK")
+				self.basePage.writeText(d)
+				return
 
 			if len(tokens)>=1 and tokens[0] == "/nick":
 				if len(tokens)==2:
@@ -120,6 +172,50 @@ class Viewer(QMainWindow):
 			if source[0] == "&": ischannel = True
 
 			tokens = text.split()
+
+			if len(tokens)==1 and tokens[0] == "/help":
+				w = self.pages[source]
+				for l in self.helpTextChannel():
+					d = system_display(l)
+					w.writeText(d)
+				return
+
+			if len(tokens)>=1 and tokens[0] == "/ignore":
+				if len(tokens)==2:
+					tokens.pop(0)
+					nick = tokens.pop(0)
+					if self.isIgnored(nick):
+						self.unignoreUser(nick)
+						w = self.pages[source]
+						d = system_display(f"{nick} is no longer ignored.")
+						w.writeText(d)
+					else:
+						self.ignoreUser(nick)
+						w = self.pages[source]
+						d = system_display(f"{nick} is ignored.")
+						w.writeText(d)
+					return
+				if len(tokens)==1:
+					if ischannel:
+						d = error_display("USAGE: /ignore NICK")
+						w = self.pages[source]
+						w.writeText(d)
+						return
+					if self.isIgnored(source):
+						self.unignoreUser(source)
+						w = self.pages[source]
+						d = system_display(f"{source} is no longer ignored.")
+						w.writeText(d)
+					else:
+						self.ignoreUser(source)
+						w = self.pages[source]
+						d = system_display(f"{source} is ignored.")
+						w.writeText(d)
+					return
+				w = self.pages[source]
+				d = error_display("USAGE: /ignore NICK")
+				w.writeText(d)
+				return
 
 			if len(tokens)>=1 and tokens[0] == "/msg":
 				if len(tokens)>=3:
@@ -231,6 +327,8 @@ class Viewer(QMainWindow):
 
 		self.unread = []
 
+		self.ignore = []
+
 		self.openNewPages = False
 		self.openNewPrivate = True
 
@@ -240,6 +338,8 @@ class Viewer(QMainWindow):
 
 		self.loadFont(QBIT_FONT)
 		self.app.setFont(self.font)
+
+		self.display = loadDisplayConfig()
 
 		self.buildUI()
 
@@ -278,24 +378,12 @@ class Viewer(QMainWindow):
 		self.appExit.triggered.connect(self.close)
 		appMenu.addAction(self.appExit)
 
-		ircMenu = self.menubar.addMenu("Actions")
-
-		self.actNick = QAction("Change nickname",self)
-		self.actNick.triggered.connect(self.menuNick)
-		ircMenu.addAction(self.actNick)
-
-		self.actJoin = QAction("Join a channel",self)
-		self.actJoin.triggered.connect(self.menuJoin)
-		ircMenu.addAction(self.actJoin)
-
 		self.unreadMenu = self.menubar.addMenu("Unread Messages")
 		action = self.unreadMenu.addAction(f"No unread messages")
 		action.setFont(self.fontItalic)
 
 		self.appRestart.setShortcut('Ctrl+S')
 		self.appExit.setShortcut('Ctrl+Q')
-		self.actNick.setShortcut('Ctrl+N')
-		self.actJoin.setShortcut('Ctrl+J')
 
 		# Page/Channel/User selector
 		self.stackSelect = QComboBox(self)
@@ -335,6 +423,9 @@ class Viewer(QMainWindow):
 		userLayout = QVBoxLayout()
 		userLayout.addWidget(gui)
 
+		gui.channelChatDisplay.setStyleSheet(f"background-color: {self.display['background']}; color: {self.display['text']};")
+		gui.userTextInput.setStyleSheet(f"background-color: {self.display['background']}; color: {self.display['text']};")
+
 		pageUser.setLayout(userLayout)
 
 		self.stack.addWidget(pageUser)
@@ -350,6 +441,10 @@ class Viewer(QMainWindow):
 
 		channelLayout = QVBoxLayout()
 		channelLayout.addWidget(gui)
+
+		gui.channelChatDisplay.setStyleSheet(f"background-color: {self.display['background']}; color: {self.display['text']};")
+		gui.userTextInput.setStyleSheet(f"background-color: {self.display['background']}; color: {self.display['text']};")
+		gui.channelUserDisplay.setStyleSheet(f"background-color: {self.display['background']}; color: {self.display['text']};")
 
 		pageChannel.setLayout(channelLayout)
 
@@ -367,6 +462,9 @@ class Viewer(QMainWindow):
 		channelLayout = QVBoxLayout()
 		channelLayout.addWidget(gui)
 
+		gui.channelChatDisplay.setStyleSheet(f"background-color: {self.display['background']}; color: {self.display['text']};")
+		gui.userTextInput.setStyleSheet(f"background-color: {self.display['background']}; color: {self.display['text']};")
+
 		pageUser.setLayout(channelLayout)
 
 		self.stack.addWidget(pageUser)
@@ -374,14 +472,6 @@ class Viewer(QMainWindow):
 		self.stackSelect.addItem(QIcon(IMAGE_USER_ICON),f" {channel}")
 
 		self.pages[channel] = gui
-
-	def menuNick(self):
-		x = NickDialog.Dialog(parent=self)
-		x.show()
-
-	def menuJoin(self):
-		x = JoinDialog.Dialog(parent=self)
-		x.show()
 
 	def show_about(self):
 		x = AboutDialog.Dialog(parent=self)
@@ -675,6 +765,24 @@ class Viewer(QMainWindow):
 
 		self.setFont(self.font)
 
+	def isIgnored(self,user):
+		if user in self.ignore: return True
+		return False
+
+	def ignoreUser(self,user):
+		if user in self.ignore:
+			return
+		self.ignore.append(user)
+
+	def unignoreUser(self,user):
+		if not user in self.ignore:
+			return
+		iu = []
+		for u in self.ignore:
+			if u == user: continue
+			iu.append(u)
+		self.ignore = iu
+
 	# Signals
 
 	@pyqtSlot(list)
@@ -886,6 +994,9 @@ class Viewer(QMainWindow):
 		hostmask = data[2]
 		message = data[3]
 
+		if nick in self.ignore:
+			return
+
 		w = self.pages[channel]
 		d = chat_display(nick,message,self.maxnicklength)
 		w.writeText(d)
@@ -903,6 +1014,9 @@ class Viewer(QMainWindow):
 		nick = data[1]
 		hostmask = data[2]
 		message = data[3]
+
+		if nick in self.ignore:
+			return
 
 		if nick in self.pages:
 			pass

@@ -28,7 +28,7 @@ import qbit.colour
 
 APPLICATION_NAME = "Qbit"
 APPLICATION_VERSION = "0.0022"
-APPLICATION_DESCRIPTION = "Compact IRC Client"
+APPLICATION_DESCRIPTION = "IRC Micro-Client"
 
 HOST_OS = platform.system()
 HOST_OS_VERSION = platform.release()
@@ -67,6 +67,9 @@ IMAGE_ABOUT_ICON = ":/about.png"
 IMAGE_PLUS_ICON = ":/plus.png"
 IMAGE_MINUS_ICON = ":/minus.png"
 IMAGE_CLIPBOARD_ICON = ":/clipboard.png"
+IMAGE_NO_ICON = ":/no.png"
+IMAGE_UNIGNORE_ICON = ":/unignore.png"
+IMAGE_X_ICON = ":/x.png"
 
 IMAGE_LOGO = ":/logo.png"
 IMAGE_PYTHON = ":/python.png"
@@ -79,6 +82,8 @@ QBIT_FONT = "Consolas"
 NORMAL_FONT_SIZE = 10
 BIG_FONT_SIZE = 12
 SMALL_FONT_SIZE = 8
+
+LINK_URLS = True
 
 TEXT_BACKGROUND_COLOR = "#ffffff"
 TEXT_COLOR = "#000000"
@@ -114,6 +119,10 @@ def is_integer(n):
 		return False
 	return True
 
+def save_display_config(config):
+	with open(DISPLAY_CONFIGURATION, "w") as write_data:
+		json.dump(config, write_data)
+
 def loadDisplayConfig():
 	if os.path.isfile(DISPLAY_CONFIGURATION):
 		with open(DISPLAY_CONFIGURATION, "r") as read_data:
@@ -135,7 +144,7 @@ def loadDisplayConfig():
 			"link": LINK_COLOR,
 			"notice": NOTICE_COLOR,
 			"motd": MOTD_COLOR,
-			"error": ERROR_COLOR
+			"links": LINK_URLS
 		}
 		with open(DISPLAY_CONFIGURATION, "w") as write_data:
 			json.dump(dc, write_data)
@@ -157,8 +166,7 @@ ACTION_COLOR = DC["action"]
 LINK_COLOR = DC["link"]
 NOTICE_COLOR = DC["notice"]
 MOTD_COLOR = DC["motd"]
-ERROR_COLOR = DC["error"]
-
+LINK_URLS = DC["links"]
 
 CHAT_TEMPLATE = f"""
 <table style="width: 100%;" border="0">
@@ -193,6 +201,7 @@ SYSTEM_TEMPLATE = """
 """
 
 def inject_www_links(txt):
+	if not LINK_URLS: return txt
 	urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', txt)
 	for u in urls:
 		u = re.sub('<[^<]+?>', '', u)

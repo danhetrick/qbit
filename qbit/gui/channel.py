@@ -136,6 +136,8 @@ class Viewer(QMainWindow):
 			user = user.replace("~","")
 			user = user.replace("&","")
 
+			is_ignored = self.parent.isIgnored(user)
+
 			if user == self.parent.nickname:
 				if not self.is_op:
 					if not self.is_voiced:
@@ -159,17 +161,22 @@ class Viewer(QMainWindow):
 			menu = QMenu()
 
 			if self.is_op:
-				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),'Channel Operator')
+				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),f"{self.parent.nickname} (Operator)")
 			elif self.is_voiced:
-				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),'Voiced User')
+				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),f"{self.parent.nickname} (Voiced)")
 			else:
-				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),'Normal User')
+				infoChan = menu.addAction(QIcon(IMAGE_USER_ICON),f"{self.parent.nickname}")
 
 			infoChan.setFont(self.parent.fontBoldItalic)
 			menu.addSeparator()
 
 			actMsg = menu.addAction(QIcon(IMAGE_PAGE_ICON),'Message User')
 			actNotice = menu.addAction(QIcon(IMAGE_PAGE_ICON),'Notice User')
+
+			if is_ignored:
+				actIgnore = menu.addAction(QIcon(IMAGE_UNIGNORE_ICON),'Unignore')
+			else:
+				actIgnore = menu.addAction(QIcon(IMAGE_NO_ICON),'Ignore')
 
 			if self.is_op: menu.addSeparator()
 
@@ -189,8 +196,8 @@ class Viewer(QMainWindow):
 			else:
 				actDevoice.setVisible(False)
 
-			actKick = menu.addAction('Kick user')
-			actBan = menu.addAction('Ban user')
+			actKick = menu.addAction(QIcon(IMAGE_X_ICON),'Kick')
+			actBan = menu.addAction(QIcon(IMAGE_NO_ICON),'Ban')
 
 			if len(self.banned)>0:
 				if self.is_op:
@@ -208,11 +215,6 @@ class Viewer(QMainWindow):
 				actKick.setVisible(False)
 				actBan.setVisible(False)
 
-			menu.addSeparator()
-
-			actClip = menu.addAction(QIcon(IMAGE_CLIPBOARD_ICON),'Copy nick to clipboard')
-			actUClip = menu.addAction(QIcon(IMAGE_CLIPBOARD_ICON),'Copy user list to clipboard')
-
 			action = menu.exec_(self.channelUserDisplay.mapToGlobal(event.pos()))
 
 			if action == actMsg:
@@ -223,6 +225,17 @@ class Viewer(QMainWindow):
 			if action == actNotice:
 				self.userTextInput.setText(f"/notice {user} ")
 				self.userTextInput.setFocus()
+				return True
+
+			if action == actIgnore:
+				if is_ignored:
+					self.parent.unignoreUser(user)
+					d = system_display(f"{user} is no longer ignored.")
+					self.writeText(d)
+				else:
+					self.parent.ignoreUser(user)
+					d = system_display(f"{user} is ignored.")
+					self.writeText(d)
 				return True
 
 			if action == actOp:
@@ -253,18 +266,6 @@ class Viewer(QMainWindow):
 				else:
 					self.parent.irc.connection.send_items('MODE', self.channel, "+b", f"*@{uh}")
 					self.banned.append(f"*@{uh}")
-				return True
-
-			if action == actClip:
-				cb = QApplication.clipboard()
-				cb.clear(mode=cb.Clipboard )
-				cb.setText(user, mode=cb.Clipboard)
-				return True
-
-			if action == actUClip:
-				cb = QApplication.clipboard()
-				cb.clear(mode=cb.Clipboard )
-				cb.setText("\n".join(self.userlist), mode=cb.Clipboard)
 				return True
 
 		return super(Viewer, self).eventFilter(source, event)

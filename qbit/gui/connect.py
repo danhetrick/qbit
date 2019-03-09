@@ -22,7 +22,7 @@ from PyQt5 import QtCore
 
 from qbit.common import *
 
-import qbit.gui.dialog.add_channel as AddChannelDialog
+import qbit.gui.add_channel as AddChannelDialog
 
 class Viewer(QDialog):
 
