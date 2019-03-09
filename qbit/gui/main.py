@@ -74,6 +74,11 @@ class Viewer(QMainWindow):
 			# base page
 			tokens = text.split()
 
+			if len(tokens)>=1 and tokens[0] == "/me":
+				d = error_display("The /me command can't be used on the server page.")
+				self.basePage.writeText(d)
+				return
+
 			if len(tokens)==1 and tokens[0] == "/help":
 				for l in self.helpText():
 					d = system_display(l)
