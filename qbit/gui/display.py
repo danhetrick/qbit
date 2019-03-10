@@ -102,7 +102,8 @@ class Viewer(QDialog):
 
 	def doSave(self):
 		save_display_config(self.display)
-		self.close()
+		#self.close()
+		self.restart()
 
 	def clickLinks(self,state):
 		if state == Qt.Checked:
@@ -111,9 +112,10 @@ class Viewer(QDialog):
 			self.display["links"] = False
 
 
-	def __init__(self,parent=None):
+	def __init__(self,restart_func,parent=None):
 		super(Viewer,self).__init__(parent)
 
+		self.restart = restart_func
 		self.parent = parent
 
 		self.setWindowTitle(f"{APPLICATION_NAME} Settings")
@@ -246,9 +248,9 @@ class Viewer(QDialog):
 			self.dolinks.toggle()
 
 		buttonLayout = QHBoxLayout()
-		self.save = QPushButton('Save',self)
+		self.save = QPushButton('Save and Restart',self)
 		self.save.clicked.connect(self.doSave)
-		self.cancel = QPushButton('Cancel',self)
+		self.cancel = QPushButton('Exit',self)
 		self.cancel.clicked.connect(self.close)
 		buttonLayout.addWidget(self.save)
 		buttonLayout.addWidget(self.cancel)

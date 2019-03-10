@@ -30,14 +30,17 @@ If a page you're not currently viewing has received chat messages, that will be 
 
 # Commands
 
-Users can enter commands into the text entry. There are seven commands that can be entered:
+Users can enter commands into the text entry. There are eight commands that can be entered:
 
-| Command | Description |
-| ----------------- | ------------ |
-| `/msg TARGET MESSAGE` | Sends a private message to a user or channel |
-| `/notice TARGET MESSAGE` | Sends a notice to a user or channel |
-| `/me MESSAGE` | Sends a CTCP action message to the current user or channel |
-| `/ignore TARGET` | Prevents messages from users or channels from being displayed. To "unignore" a target, issue the `/ignore` command with the same target again. |
-| `/nick NEW_NICKNAME` | Changes your IRC nickname |
-| `/join CHANNEL [KEY]` | Join an IRC channel; `KEY` is only necessary to join a channel locked with a key. When a channel is successfully joined, a page is created for it. |
-| `/part CHANNEL` | Leaves an IRC channel. When a channel is left, the channel's associated page is destroyed. If you're on a channel or user chat window, issue the `/part` command without any arguments to part the current channel or "leave" the current user chat. |
+* `/help` Lists commands and gives usage information.
+* `/msg TARGET MESSAGE`  Sends a private message to a user or channel.
+* `/notice TARGET MESSAGE`  Sends a notice to a user or channel.
+* `/me MESSAGE`  Sends a CTCP action message to the current user or channel.
+* `/ignore TARGET`  Prevents messages from users or channels from being displayed. To "unignore" a target, issue the `/ignore` command with the same target again.
+* `/nick NEW_NICKNAME`  Changes your IRC nickname.
+* `/join CHANNEL [KEY]`  Join an IRC channel; `KEY` is only necessary to join a channel locked with a key. When a channel is successfully joined, a page is created for it.
+* `/part CHANNEL`  Leaves an IRC channel. When a channel is left, the channel's associated page is destroyed. If you're on a channel or user chat window, issue the `/part` command without any arguments to part the current channel or "leave" the current user chat.
+
+# Customize
+
+By default, **Qbit** uses the "Consolas" font, at 10pt. size, as well as different colors for different types of messages, both incoming and outgoing. To customize these settings, start **Qbit** with a command-line flag, `-s` or `--settings`. This will open up a GUI editor that allows you to change the display font and colors. When you're done editing, click "Save and Restart" to, well, save the new settigns and restart **Qbit** or "Exit" to exit.
