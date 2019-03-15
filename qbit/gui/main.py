@@ -18,6 +18,9 @@
 import sys
 import os
 
+import ast
+import imp
+
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -314,6 +317,8 @@ class Viewer(QMainWindow):
 			d = mychat_display(self.nickname,text,self.maxnicklength)
 			w.writeText(d)
 
+			w.log.append(f"{source} {self.nickname}: {text}")
+
 	def __init__(self,app,restart_func,title="Qbit",parent=None):
 		super(Viewer, self).__init__(parent)
 
@@ -337,6 +342,8 @@ class Viewer(QMainWindow):
 		self.openNewPages = False
 		self.openNewPrivate = True
 
+		self.movePageToJoinedChannel = True
+
 		self.currentPage = ""
 
 		self.firstchan = ""
@@ -357,15 +364,48 @@ class Viewer(QMainWindow):
 
 		appMenu = self.menubar.addMenu("Qbit")
 
-		optOpenNew = QAction("View new messages",self,checkable=True)
+		# optOpenNew = QAction("View new messages",self,checkable=True)
+		# optOpenNew.setChecked(self.openNewPages)
+		# optOpenNew.triggered.connect(self.toggleOpenNew)
+		# appMenu.addAction(optOpenNew)
+
+		# optOpenPrivate = QAction("View new private messages",self,checkable=True)
+		# optOpenPrivate.setChecked(self.openNewPrivate)
+		# optOpenPrivate.triggered.connect(self.toggleOpenPrivate)
+		# appMenu.addAction(optOpenPrivate)
+
+		optMenu = appMenu.addMenu("Options")
+
+		optOpenNew = QAction("Change page to new public messages",self,checkable=True)
 		optOpenNew.setChecked(self.openNewPages)
 		optOpenNew.triggered.connect(self.toggleOpenNew)
-		appMenu.addAction(optOpenNew)
+		optMenu.addAction(optOpenNew)
 
-		optOpenPrivate = QAction("View new private messages",self,checkable=True)
+		optOpenPrivate = QAction("Change page to new private messages",self,checkable=True)
 		optOpenPrivate.setChecked(self.openNewPrivate)
 		optOpenPrivate.triggered.connect(self.toggleOpenPrivate)
-		appMenu.addAction(optOpenPrivate)
+		optMenu.addAction(optOpenPrivate)
+
+		optJoinNew = QAction("Change page to new joined channels",self,checkable=True)
+		optJoinNew.setChecked(self.movePageToJoinedChannel)
+		optJoinNew.triggered.connect(self.toggleJoinNew)
+		optMenu.addAction(optJoinNew)
+
+		optMenu.addSeparator()
+
+		self.actCustom = QAction("Restart and edit display settings",self)
+		self.actCustom.triggered.connect(self.restart_display)
+		optMenu.addAction(self.actCustom)
+
+		appMenu.addSeparator()
+
+		self.actSave = QAction(QIcon(IMAGE_SAVE_ICON),"Save current chat as...",self)
+		self.actSave.triggered.connect(self.save_chat)
+		appMenu.addAction(self.actSave)
+
+		self.actSaveAll = QAction(QIcon(IMAGE_SAVE_ICON),"Save all chat as...",self)
+		self.actSaveAll.triggered.connect(self.save_all_chat)
+		appMenu.addAction(self.actSaveAll)
 
 		appMenu.addSeparator()
 
@@ -387,8 +427,9 @@ class Viewer(QMainWindow):
 		action = self.unreadMenu.addAction(f"No unread messages")
 		action.setFont(self.fontItalic)
 
-		self.appRestart.setShortcut('Ctrl+S')
+		self.actSave.setShortcut('Ctrl+S')
 		self.appExit.setShortcut('Ctrl+Q')
+		self.actSaveAll.setShortcut('Ctrl+L')
 
 		# Page/Channel/User selector
 		self.stackSelect = QComboBox(self)
@@ -419,6 +460,42 @@ class Viewer(QMainWindow):
 		conLayout.addWidget(self.connectPage)
 		pageConnect.setLayout(conLayout)
 		self.stack.addWidget(pageConnect)
+
+	def restart_display(self):
+		sys.argv.append("--settings")
+		self.restart_program()
+
+	def save_all_chat(self):
+		log = []
+		for p in self.pages:
+			for line in self.pages[p].log:
+				log.append(line)
+		options = QFileDialog.Options()
+		options |= QFileDialog.DontUseNativeDialog
+		filename, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","Text Files (*.txt);;All Files (*)", options=options)
+		if filename:
+			f = open(filename,'w')
+			f.write("\n".join(log))
+			f.close()
+
+	def save_chat(self):
+		i = self.stackSelect.currentIndex()
+		channel = self.stackSelect.itemText(i).strip()
+
+		if i == 0:
+			# base page
+			w = self.basePage
+		else:
+			w = self.pages[channel]
+
+		options = QFileDialog.Options()
+		options |= QFileDialog.DontUseNativeDialog
+		filename, _ = QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","Text Files (*.txt);;All Files (*)", options=options)
+		if filename:
+			f = open(filename,'w')
+			f.write("\n".join(w.log))
+			f.close()
+
 
 	def createBasePage(self,title):
 
@@ -481,6 +558,9 @@ class Viewer(QMainWindow):
 	def show_about(self):
 		x = AboutDialog.Dialog(parent=self)
 		x.show()
+
+	def toggleJoinNew(self,state):
+		self.movePageToJoinedChannel = state
 
 	def toggleOpenNew(self,state):
 		self.openNewPages = state
@@ -938,11 +1018,15 @@ class Viewer(QMainWindow):
 		channel = data
 
 		self.addChannelPage(channel)
-		if self.openNewPages:
-			self.changePage(channel)
-			return
+		if self.firstchan == '':
+			if self.movePageToJoinedChannel:
+				self.changePage(channel)
+		# if self.openNewPages:
+		# 	self.changePage(channel)
+		# 	return
 		if self.firstchan == channel:
 			self.changePage(channel)
+			self.firstchan = ''
 
 	@pyqtSlot(str)
 	def gotNicklength(self,data):
@@ -1006,6 +1090,8 @@ class Viewer(QMainWindow):
 		d = chat_display(nick,message,self.maxnicklength)
 		w.writeText(d)
 
+		w.log.append(f"{channel} {nick}({hostmask}): {message}")
+
 		if not self.samePage(channel):
 			if self.openNewPages:
 				self.changePage(channel)
@@ -1033,6 +1119,8 @@ class Viewer(QMainWindow):
 		d = chat_display(nick,message,self.maxnicklength)
 		w.writeText(d)
 
+		w.log.append(f"{target} {nick}({hostmask}): {message}")
+
 		if not self.samePage(nick):
 			if self.openNewPages:
 				self.changePage(nick)
@@ -1054,6 +1142,8 @@ class Viewer(QMainWindow):
 		d = action_display(nick,message)
 		w.writeText(d)
 
+		w.log.append(f"ACTION {channel} {nick}({hostmask}): {message}")
+
 		if self.openNewPages:
 			self.changePage(channel)
 
@@ -1068,15 +1158,18 @@ class Viewer(QMainWindow):
 			w = self.pages[target]
 			d = notice_display(nick,message,self.maxnicklength)
 			w.writeText(d)
+			w.log.append(f"NOTICE {target} {nick}({hostmask}): {message}")
 			if self.openNewPages:
 				self.changePage(channel)
 		else:
 			if self.basePageOpen:
 				d = notice_display(nick,message,self.maxnicklength)
 				self.basePage.writeText(d)
+				self.basePage.log.append(f"NOTICE {target} {nick}({hostmask}): {message}")
 			else:
 				d = notice_display(nick,message,self.maxnicklength)
 				self.basePageBuffer.append(d)
+				#self.basePage.log.append(f"NOTICE {target} {nick}({hostmask}): {message}")
 
 
 	@pyqtSlot(str,list)
@@ -1122,9 +1215,6 @@ class Connecting(QDialog):
 		self.setLayout(finalLayout)
 
 		
-
-
-
 
 
 

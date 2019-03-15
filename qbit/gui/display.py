@@ -101,6 +101,8 @@ class Viewer(QDialog):
 			self.display['fontsmall'] = fsmall
 
 	def doSave(self):
+		self.display['width'] = int(self.winWidth.text())
+		self.display['height'] = int(self.winHeight.text())
 		save_display_config(self.display)
 		#self.close()
 		self.restart()
@@ -247,6 +249,20 @@ class Viewer(QDialog):
 		if self.display["links"]:
 			self.dolinks.toggle()
 
+		widthLayout = QHBoxLayout()
+		self.widthLabel = QLabel("Initial window width")
+		self.winWidth = QLineEdit(f"{str(self.display['width'])}")
+		widthLayout.addWidget(self.widthLabel)
+		widthLayout.addStretch()
+		widthLayout.addWidget(self.winWidth)
+
+		heightLayout = QHBoxLayout()
+		self.heightLabel = QLabel("Initial window height")
+		self.winHeight = QLineEdit(f"{str(self.display['height'])}")
+		heightLayout.addWidget(self.heightLabel)
+		heightLayout.addStretch()
+		heightLayout.addWidget(self.winHeight)
+
 		buttonLayout = QHBoxLayout()
 		self.save = QPushButton('Save and Restart',self)
 		self.save.clicked.connect(self.doSave)
@@ -259,6 +275,8 @@ class Viewer(QDialog):
 		finalLayout.addWidget(fontBox)
 		finalLayout.addLayout(selectColors)
 		finalLayout.addWidget(self.dolinks)
+		finalLayout.addLayout(widthLayout)
+		finalLayout.addLayout(heightLayout)
 		finalLayout.addLayout(buttonLayout)
 
 		self.setWindowFlags(self.windowFlags()

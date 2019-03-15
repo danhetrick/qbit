@@ -53,6 +53,8 @@ class Viewer(QMainWindow):
 
 		self.topic = ''
 
+		self.log = []
+
 		self.buildInterface()
 
 	def buildInterface(self):
@@ -338,6 +340,8 @@ class Viewer(QMainWindow):
 	def writeText(self,text):
 		self.channelChatDisplay.append(text)
 		self.channelChatDisplay.moveCursor(QTextCursor.End)
+
+		#self.log.append(remove_html_markup(text))
 
 	# Handle user input
 	def handleUserInput(self):

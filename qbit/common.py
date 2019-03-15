@@ -27,7 +27,7 @@ globals()["qbit.resources"] = __import__("qbit.resources")
 import qbit.colour
 
 APPLICATION_NAME = "Qbit"
-APPLICATION_VERSION = "0.0022"
+APPLICATION_VERSION = "0.0024"
 APPLICATION_DESCRIPTION = "IRC Micro-Client"
 
 HOST_OS = platform.system()
@@ -52,24 +52,22 @@ CONFIG_DIRECTORY = os.path.join(INSTALL_DIRECTORY, "config")
 DISPLAY_CONFIGURATION = os.path.join(CONFIG_DIRECTORY, "display.json")
 LAST_SERVER_INFORMATION_FILE = os.path.join(CONFIG_DIRECTORY, "lastserver.json")
 AUTOJOIN_FILE = os.path.join(CONFIG_DIRECTORY, "autojoin.json")
-
 USER_FILE = os.path.join(CONFIG_DIRECTORY, "user.json")
 
 IMAGE_QBIT_ICON = ":/qbit.png"
 IMAGE_PAGE_ICON = ":/page.png"
 IMAGE_EXIT_ICON = ":/exit.png"
 IMAGE_RESTART_ICON = ":/restart.png"
-IMAGE_CHANNEL_ICON = ":/channel.png"
 IMAGE_USER_ICON = ":/user.png"
 IMAGE_CLEAR_ICON = ":/clear.png"
 IMAGE_SERVER_ICON = ":/server.png"
 IMAGE_ABOUT_ICON = ":/about.png"
 IMAGE_PLUS_ICON = ":/plus.png"
 IMAGE_MINUS_ICON = ":/minus.png"
-IMAGE_CLIPBOARD_ICON = ":/clipboard.png"
 IMAGE_NO_ICON = ":/no.png"
 IMAGE_UNIGNORE_ICON = ":/unignore.png"
 IMAGE_X_ICON = ":/x.png"
+IMAGE_SAVE_ICON = ":/save.png"
 
 IMAGE_LOGO = ":/logo.png"
 IMAGE_PYTHON = ":/python.png"
@@ -144,7 +142,9 @@ def loadDisplayConfig():
 			"link": LINK_COLOR,
 			"notice": NOTICE_COLOR,
 			"motd": MOTD_COLOR,
-			"links": LINK_URLS
+			"links": LINK_URLS,
+			"width": INITIAL_WINDOW_WIDTH,
+			"height": INITIAL_WINDOW_HEIGHT
 		}
 		with open(DISPLAY_CONFIGURATION, "w") as write_data:
 			json.dump(dc, write_data)
@@ -167,6 +167,8 @@ LINK_COLOR = DC["link"]
 NOTICE_COLOR = DC["notice"]
 MOTD_COLOR = DC["motd"]
 LINK_URLS = DC["links"]
+INITIAL_WINDOW_WIDTH = DC["width"]
+INITIAL_WINDOW_HEIGHT = DC["height"]
 
 CHAT_TEMPLATE = f"""
 <table style="width: 100%;" border="0">
@@ -316,21 +318,21 @@ def motd_display(text,max):
 	return msg
 
 def remove_html_markup(s):
-    tag = False
-    quote = False
-    out = ""
+	tag = False
+	quote = False
+	out = ""
 
-    for c in s:
-            if c == '<' and not quote:
-                tag = True
-            elif c == '>' and not quote:
-                tag = False
-            elif (c == '"' or c == "'") and tag:
-                quote = not quote
-            elif not tag:
-                out = out + c
+	for c in s:
+			if c == '<' and not quote:
+				tag = True
+			elif c == '>' and not quote:
+				tag = False
+			elif (c == '"' or c == "'") and tag:
+				quote = not quote
+			elif not tag:
+				out = out + c
 
-    return out
+	return out
 
 def save_last_server(host,port,password,ssl):
 	sinfo = {

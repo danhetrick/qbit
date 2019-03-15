@@ -72,6 +72,10 @@ class Dialog(QDialog):
 		colourlib.setAlignment(Qt.AlignCenter)
 		colourlib.setOpenExternalLinks(True)
 
+		icons = QLabel("<a href=\"https://material.io/tools/icons/\">Icons</a> by <a href=\"https://google.com\">Google</a>")
+		icons.setAlignment(Qt.AlignCenter)
+		icons.setOpenExternalLinks(True)
+
 		spacer = QLabel(" ")
 
 		aexit = QPushButton("Ok")
@@ -83,6 +87,7 @@ class Dialog(QDialog):
 		finalLayout.addWidget(spacer)
 		finalLayout.addWidget(irclib)
 		finalLayout.addWidget(colourlib)
+		finalLayout.addWidget(icons)
 		finalLayout.addWidget(spacer)
 		finalLayout.addLayout(technology)
 		finalLayout.addWidget(spacer)
